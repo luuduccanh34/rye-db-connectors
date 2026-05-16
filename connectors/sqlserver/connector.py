@@ -1,10 +1,10 @@
-import pyodbc
 import platform
+import pyodbc
 from typing import Any, Optional, List, Dict
 from connectors.base.connector import BaseConnector
 
+# Tắt connection pooling trên macOS để tránh lỗi memory corruption / segmentation fault từ unixODBC
 if platform.system() == "Darwin":
-    # Tắt pooling trên macOS để tránh lỗi segmentation fault từ unixODBC
     pyodbc.pooling = False
 
 class SQLServerConnector(BaseConnector):
@@ -30,7 +30,7 @@ class SQLServerConnector(BaseConnector):
             from variables.sqlserver import SQLServerVariables
             self.config = SQLServerVariables.config()
 
-        # Xử lý parse chuỗi connection string từ Object hoặc Dictionary để tránh lỗi malloc của pyodbc
+        # Xử lý parse chuỗi connection string từ Object hoặc Dictionary
         if isinstance(self.config, dict):
             # Clean data (strip các dấu nháy đơn/kép nếu bị dính từ file .env)
             driver = self.config.get("SQLSERVER_DRIVER", "ODBC Driver 17 for SQL Server").strip("'\"")
@@ -40,9 +40,15 @@ class SQLServerConnector(BaseConnector):
             username = self.config.get("SQLSERVER_USERNAME", "").strip("'\"")
             password = self.config.get("SQLSERVER_PASSWORD", "").strip("'\"")
 
+            # Đảm bảo định dạng DRIVER khớp với chuỗi test thành công của bạn (không ép thêm dấu ngoặc nhọn {})
+            if not driver.startswith("{") and not driver.endswith("}"):
+                driver_str = f"DRIVER={driver};"
+            else:
+                driver_str = f"DRIVER={driver};"
+
             # Xây dựng chuỗi ODBC Connection String tiêu chuẩn
             self.connection_string = (
-                f"DRIVER={{{driver}}};"
+                f"{driver_str}"
                 f"SERVER={host},{port};"
                 f"DATABASE={database};"
                 f"UID={username};"
